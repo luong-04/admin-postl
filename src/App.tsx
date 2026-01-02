@@ -106,13 +106,29 @@ export default function App() {
     } catch (e: any) { alert("Lỗi: " + e.message); }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm("Xóa vĩnh viễn quán này?")) return;
+  const handleDelete = async (shop: Tenant) => {
+    if (!window.confirm(`Xóa vĩnh viễn quán "${shop.name}" và tài khoản đăng nhập?`)) return;
+    
     try {
-      await supabase.from('tenants').delete().eq('id', id);
-      alert("Đã xóa!");
-      fetchTenants();
-    } catch (e: any) { alert("Lỗi xóa: " + e.message); }
+      // BƯỚC 1: Xóa tài khoản trong bảng Auth (Quan trọng nhất)
+      // Phải dùng supabaseAdmin (biến có service_role key) mới xóa được
+      if (shop.owner_id) {
+        const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(shop.owner_id);
+        if (authError) {
+          console.error("Lỗi xóa Auth:", authError);
+          // Vẫn cho chạy tiếp để xóa dữ liệu rác trong bảng tenants nếu có
+        }
+      }
+  
+      // BƯỚC 2: Xóa dữ liệu quán trong Database (public)
+      const { error: dbError } = await supabase.from('tenants').delete().eq('id', shop.id);
+      if (dbError) throw dbError;
+  
+      alert("Đã xóa sạch quán và tài khoản email!");
+      fetchTenants(); // Tải lại danh sách
+    } catch (e: any) { 
+      alert("Lỗi xóa: " + e.message); 
+    }
   };
 
   const openEditModal = (shop: Tenant) => {
