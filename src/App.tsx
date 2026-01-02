@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase, supabaseAdmin } from './supabase';
 import { 
-  LayoutDashboard, Store, Users, Calendar, 
+  LayoutDashboard, Store, 
   Plus, Search, LogOut, CheckCircle, XCircle, 
   Edit, Trash2, Lock, Unlock, CalendarDays, Ban 
 } from 'lucide-react';
