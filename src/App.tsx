@@ -3,8 +3,8 @@ import { supabase, supabaseAdmin } from './supabase';
 import { 
   LayoutDashboard, Store, 
   Plus, Search, LogOut, CheckCircle, XCircle, 
-  Edit, Trash2, Lock, Unlock, CalendarDays, Ban 
-} from 'lucide-react';
+  Edit, Trash2, Lock, Unlock, CalendarDays, Ban, Menu, X 
+} from 'lucide-react'; // Thêm icon Menu và X
 import { format, addYears } from 'date-fns';
 
 // --- 1. TYPES ---
@@ -35,16 +35,16 @@ const DashboardStats = ({ tenants }: { tenants: Tenant[] }) => {
   const inactiveCount = tenants.length - activeCount;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
         <div className="text-slate-500 text-sm font-medium mb-1">Tổng số quán</div>
         <div className="text-3xl font-bold text-slate-800">{tenants.length}</div>
       </div>
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
          <div className="text-slate-500 text-sm font-medium mb-1">Đang hoạt động</div>
          <div className="text-3xl font-bold text-emerald-600">{activeCount}</div>
       </div>
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
          <div className="text-slate-500 text-sm font-medium mb-1">Hết hạn / Đã khóa</div>
          <div className="text-3xl font-bold text-red-600">{inactiveCount}</div>
       </div>
@@ -59,11 +59,11 @@ export default function App() {
   const [showModal, setShowModal] = useState(false);
   const [activeTab, setActiveTab] = useState('shops'); 
   const [editingId, setEditingId] = useState<string | null>(null);
-
-  // SEARCH STATE
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // State cho Mobile Menu
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Form Data
   const [formData, setFormData] = useState({ 
     name: '', owner: '', email: '', pass: '', 
     startDate: '', endDate: '' 
@@ -73,35 +73,19 @@ export default function App() {
     fetchTenants(); 
   }, []); 
 
-  // --- LẤY DỮ LIỆU ---
   const fetchTenants = async () => {
     setLoading(true);
     const { data, error } = await supabase.from('tenants').select('*').order('created_at', { ascending: false });
     if (error) console.error("Lỗi tải:", error);
-    
-    if (data) {
-      const now = new Date();
-      // Logic kiểm tra hết hạn
-      const updatedData = await Promise.all(data.map(async (t) => {
-        const isExpired = new Date(t.expired_at) < now;
-        if (t.active && isExpired) {
-          await supabase.from('tenants').update({ active: false }).eq('id', t.id);
-          return { ...t, active: false };
-        }
-        return t;
-      }));
-      setTenants(updatedData);
-    }
+    if (data) setTenants(data);
     setLoading(false);
   };
 
-  // --- LOGIC LỌC VÀ TÌM KIẾM ---
   const getDisplayTenants = () => {
     let filtered = tenants;
     if (activeTab === 'locked_shops') {
        filtered = tenants.filter(t => !t.active || new Date(t.expired_at) < new Date());
     }
-    
     if (searchTerm.trim()) {
       const lowerTerm = searchTerm.toLowerCase();
       filtered = filtered.filter(t => 
@@ -193,7 +177,6 @@ export default function App() {
         } else {
           alert("Cập nhật thông tin thành công!");
         }
-
       } else {
         const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
           email: formData.email,
@@ -213,7 +196,6 @@ export default function App() {
         if (tenantData) await supabaseAdmin.from('profiles').update({ tenant_id: tenantData.id }).eq('id', authData.user.id);
         alert(`Tạo quán thành công!`);
       }
-
       setShowModal(false);
       fetchTenants(); 
     } catch (e: any) {
@@ -224,25 +206,49 @@ export default function App() {
   const lockedCount = tenants.filter(t => !t.active || new Date(t.expired_at) < new Date()).length;
   const displayTenants = getDisplayTenants();
 
+  // Hàm chuyển Tab và đóng Menu Mobile
+  const switchTab = (tab: string) => {
+    setActiveTab(tab);
+    setSearchTerm('');
+    setIsMobileMenuOpen(false); // Đóng menu sau khi chọn
+  };
+
   return (
-    <div className="flex h-screen w-screen bg-slate-50 overflow-hidden">
-      {/* SIDEBAR */}
-      <aside className="w-64 bg-slate-900 text-white flex flex-col">
-        <div className="p-6 border-b border-slate-700">
-          <h1 className="text-2xl font-bold text-blue-400">PosTL Admin</h1>
-          <p className="text-xs text-slate-400 mt-1">Super Management</p>
+    <div className="flex h-screen w-screen bg-slate-50 overflow-hidden font-sans relative">
+      
+      {/* --- MOBILE OVERLAY (Màn đen mờ khi mở menu) --- */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden transition-opacity"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* --- SIDEBAR (RESPONSIVE) --- */}
+      <aside 
+        className={`
+          fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white flex flex-col transition-transform duration-300 ease-in-out
+          md:relative md:translate-x-0
+          ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}
+      >
+        <div className="p-6 border-b border-slate-700 flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-blue-400">PosTL Admin</h1>
+            <p className="text-xs text-slate-400 mt-1">Super Management</p>
+          </div>
+          {/* Nút đóng menu trên mobile */}
+          <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-slate-400 hover:text-white">
+            <X size={24} />
+          </button>
         </div>
-        <nav className="flex-1 p-4 space-y-2">
-          <SidebarItem icon={<LayoutDashboard size={20}/>} label="Tổng quan" active={activeTab === 'dashboard'} onClick={()=>setActiveTab('dashboard')} />
-          <SidebarItem icon={<Store size={20}/>} label="Tất cả quán" active={activeTab === 'shops'} onClick={()=>{setActiveTab('shops'); setSearchTerm('')}} />
-          <SidebarItem 
-            icon={<Ban size={20}/>} 
-            label="Quán đã khóa" 
-            active={activeTab === 'locked_shops'} 
-            onClick={()=>{setActiveTab('locked_shops'); setSearchTerm('')}} 
-            badge={lockedCount}
-          />
+        
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+          <SidebarItem icon={<LayoutDashboard size={20}/>} label="Tổng quan" active={activeTab === 'dashboard'} onClick={()=>switchTab('dashboard')} />
+          <SidebarItem icon={<Store size={20}/>} label="Tất cả quán" active={activeTab === 'shops'} onClick={()=>switchTab('shops')} />
+          <SidebarItem icon={<Ban size={20}/>} label="Quán đã khóa" active={activeTab === 'locked_shops'} onClick={()=>switchTab('locked_shops')} badge={lockedCount} />
         </nav>
+        
         <div className="p-4 border-t border-slate-700">
           <button className="flex items-center gap-3 text-slate-300 hover:text-white w-full px-4 py-2 hover:bg-slate-800 rounded-lg transition">
             <LogOut size={20} /> Đăng xuất
@@ -250,51 +256,53 @@ export default function App() {
         </div>
       </aside>
 
-      {/* MAIN CONTENT */}
-      <main className="flex-1 flex flex-col h-full overflow-hidden">
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8">
-          <h2 className="text-xl font-bold text-slate-800">
-            {activeTab === 'dashboard' ? 'Dashboard' : 
-             activeTab === 'shops' ? 'Danh sách Cửa hàng' : 'Các Quán Đang Khóa'}
-          </h2>
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">A</div>
+      {/* --- MAIN CONTENT --- */}
+      <main className="flex-1 flex flex-col h-full w-full overflow-hidden relative">
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shrink-0">
+          <div className="flex items-center gap-3">
+            {/* Nút Menu Mobile */}
+            <button 
+              onClick={() => setIsMobileMenuOpen(true)} 
+              className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg"
+            >
+              <Menu size={24} />
+            </button>
+            
+            <h2 className="text-lg md:text-xl font-bold text-slate-800 truncate">
+              {activeTab === 'dashboard' ? 'Dashboard' : activeTab === 'shops' ? 'Danh sách Cửa hàng' : 'Các Quán Đang Khóa'}
+            </h2>
           </div>
+          <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm md:text-base">A</div>
         </header>
 
-        <div className="flex-1 overflow-auto">
-          {activeTab === 'dashboard' && <div className="p-8"><DashboardStats tenants={tenants} /></div>}
+        <div className="flex-1 overflow-auto p-4 md:p-8">
+          {activeTab === 'dashboard' && <DashboardStats tenants={tenants} />}
 
           {(activeTab === 'shops' || activeTab === 'locked_shops') && (
-            <div className="p-8">
-              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="p-5 flex justify-between items-center border-b border-slate-100">
-                  <div className="relative w-96">
-                    <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
-                    <input 
-                      type="text" 
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      placeholder="Tìm tên quán, chủ quán, email..." 
-                      className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                    />
-                  </div>
-                  
-                  {activeTab === 'shops' && (
-                    <button onClick={openCreateModal} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition shadow-lg shadow-blue-200">
-                      <Plus size={18} /> Tạo Quán Mới
-                    </button>
-                  )}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col max-h-full">
+              {/* Toolbar */}
+              <div className="p-4 md:p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b border-slate-100 shrink-0">
+                <div className="relative w-full md:w-96">
+                  <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
+                  <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Tìm quán, chủ quán, email..." className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
+                {activeTab === 'shops' && (
+                  <button onClick={openCreateModal} className="w-full md:w-auto flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition shadow-lg shadow-blue-200">
+                    <Plus size={18} /> <span className="md:inline">Tạo Mới</span>
+                  </button>
+                )}
+              </div>
 
-                <table className="w-full text-left">
-                  <thead className="bg-slate-50 text-slate-500 text-xs uppercase font-semibold">
+              {/* TABLE CONTAINER (Quan trọng: overflow-auto để cuộn bảng) */}
+              <div className="overflow-auto flex-1 min-h-0">
+                <table className="w-full text-left min-w-[800px]"> {/* min-w để ép bảng không bị co dúm trên mobile */}
+                  <thead className="bg-slate-50 text-slate-500 text-xs uppercase font-semibold sticky top-0 z-10 shadow-sm">
                     <tr>
-                      <th className="px-6 py-4">Tên Quán</th>
-                      <th className="px-6 py-4">Chủ sở hữu</th>
-                      <th className="px-6 py-4">Trạng thái</th>
-                      <th className="px-6 py-4">Thời hạn HĐ</th>
-                      <th className="px-6 py-4 text-right">Hành động</th>
+                      <th className="px-6 py-4 bg-slate-50">Tên Quán</th>
+                      <th className="px-6 py-4 bg-slate-50">Chủ sở hữu</th>
+                      <th className="px-6 py-4 bg-slate-50">Trạng thái</th>
+                      <th className="px-6 py-4 bg-slate-50">Thời hạn HĐ</th>
+                      <th className="px-6 py-4 text-right bg-slate-50">Hành động</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -337,18 +345,13 @@ export default function App() {
                           </td>
                           <td className="px-6 py-4 text-right">
                             <div className="flex items-center justify-end gap-2">
-                              <button onClick={() => openEditModal(shop)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full" title="Sửa thông tin / Gia hạn">
+                              <button onClick={() => openEditModal(shop)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full bg-white border border-slate-200 shadow-sm" title="Sửa thông tin">
                                 <Edit size={18} />
                               </button>
-                              
-                              <button onClick={() => handleToggleStatus(shop.id, shop.active)} className={`p-2 rounded-full ${shop.active ? 'text-amber-500 hover:bg-amber-50' : 'text-emerald-600 hover:bg-emerald-50'}`} title={shop.active ? "Khóa ngay" : "Mở khóa ngay"}>
-                                {/* SỬA LOGIC ICON Ở ĐÂY */}
-                                {/* Đang hoạt động (active=true) -> Hiện Unlock (Ý là trạng thái đang mở) */}
-                                {/* Đang khóa (active=false) -> Hiện Lock (Ý là trạng thái đang khóa) */}
+                              <button onClick={() => handleToggleStatus(shop.id, shop.active)} className={`p-2 rounded-full border shadow-sm bg-white ${shop.active ? 'text-amber-500 border-amber-200' : 'text-emerald-600 border-emerald-200'}`} title={shop.active ? "Khóa ngay" : "Mở khóa ngay"}>
                                 {shop.active ? <Unlock size={18} /> : <Lock size={18} />}
                               </button>
-
-                              <button onClick={() => handleDelete(shop.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-full" title="Xóa vĩnh viễn">
+                              <button onClick={() => handleDelete(shop.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-full bg-white border border-slate-200 shadow-sm" title="Xóa vĩnh viễn">
                                 <Trash2 size={18} />
                               </button>
                             </div>
@@ -364,62 +367,29 @@ export default function App() {
         </div>
       </main>
 
-      {/* MODAL (Giữ nguyên) */}
+      {/* MODAL */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 animate-in fade-in zoom-in duration-200 max-h-full overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg font-bold text-slate-800">{editingId ? 'Cập nhật & Gia Hạn' : 'Thêm Cửa Hàng Mới'}</h3>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-red-500"><XCircle size={24}/></button>
             </div>
-            
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Tên quán</label>
-                <input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full border p-2 rounded-lg" />
+              <div><label className="block text-sm font-medium text-slate-700 mb-1">Tên quán</label><input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full border p-2 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" /></div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><label className="block text-sm font-medium text-slate-700 mb-1">Tên chủ quán</label><input value={formData.owner} onChange={e => setFormData({...formData, owner: e.target.value})} className="w-full border p-2 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" /></div>
+                <div><label className="block text-sm font-medium text-slate-700 mb-1">Email</label><input value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full border p-2 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" /></div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Tên chủ quán</label>
-                  <input value={formData.owner} onChange={e => setFormData({...formData, owner: e.target.value})} className="w-full border p-2 rounded-lg" />
-                </div>
-                <div>
-                   <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-                   <input value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full border p-2 rounded-lg" />
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                 <div><label className="block text-xs font-bold text-emerald-600 mb-1">NGÀY BẮT ĐẦU</label><input type="date" value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} className="w-full border p-2 rounded-lg text-sm" /></div>
+                 <div><label className="block text-xs font-bold text-red-600 mb-1">NGÀY HẾT HẠN</label><input type="date" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} className="w-full border p-2 rounded-lg text-sm" /></div>
               </div>
-              
-              <div className="grid grid-cols-2 gap-4 bg-slate-50 p-3 rounded-lg border border-slate-200">
-                 <div>
-                    <label className="block text-xs font-bold text-emerald-600 mb-1">NGÀY BẮT ĐẦU</label>
-                    <input type="date" value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} className="w-full border p-2 rounded-lg text-sm" />
-                 </div>
-                 <div>
-                    <label className="block text-xs font-bold text-red-600 mb-1">NGÀY HẾT HẠN</label>
-                    <input type="date" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} className="w-full border p-2 rounded-lg text-sm" />
-                 </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                    {editingId ? "Đặt lại Mật Khẩu (Để trống nếu không đổi)" : "Mật khẩu khởi tạo"}
-                </label>
-                <input 
-                    type="text" 
-                    value={formData.pass} 
-                    onChange={e => setFormData({...formData, pass: e.target.value})} 
-                    className="w-full border p-2 rounded-lg border-blue-200 bg-blue-50 text-blue-900 font-medium" 
-                    placeholder={editingId ? "Nhập mật khẩu mới..." : "123456"}
-                />
-              </div>
-
+              <div><label className="block text-sm font-medium text-slate-700 mb-1">{editingId ? "Đặt lại Mật Khẩu (Để trống nếu không đổi)" : "Mật khẩu khởi tạo"}</label><input type="text" value={formData.pass} onChange={e => setFormData({...formData, pass: e.target.value})} className="w-full border p-2 rounded-lg border-blue-200 bg-blue-50 text-blue-900 font-medium focus:ring-2 focus:ring-blue-500 outline-none" placeholder={editingId ? "Nhập mật khẩu mới..." : "123456"} /></div>
             </div>
-
             <div className="mt-8 flex justify-end gap-3">
               <button onClick={() => setShowModal(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Hủy</button>
-              <button onClick={handleSubmit} className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700">
-                {editingId ? 'Lưu thay đổi' : 'Xác nhận tạo'}
-              </button>
+              <button onClick={handleSubmit} className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700">{editingId ? 'Lưu thay đổi' : 'Xác nhận tạo'}</button>
             </div>
           </div>
         </div>
