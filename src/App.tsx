@@ -325,7 +325,7 @@ export default function App() {
                     {loading ? (
                       <tr><td colSpan={5} className="p-8 text-center text-slate-500">Đang tải dữ liệu...</td></tr>
                     ) : displayTenants.length === 0 ? (
-                       <tr><td colSpan={5} className="p-8 text-center text-slate-400">Không tìm thấy quán nào.</td></tr>
+                        <tr><td colSpan={5} className="p-8 text-center text-slate-400">Không tìm thấy quán nào.</td></tr>
                     ) : displayTenants.map((shop) => {
                       const isExpired = new Date(shop.expired_at) < new Date();
                       const statusLabel = isExpired ? 'Hết hạn' : (shop.active ? 'Hoạt động' : 'Đã khóa');
@@ -337,15 +337,15 @@ export default function App() {
                         <tr key={shop.id} className={`hover:bg-slate-50 transition ${isExpired ? 'opacity-70' : ''}`}>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
-                               {shop.logo_url ? (
-                                 <img src={shop.logo_url} className="w-10 h-10 rounded-full object-cover border border-slate-200" />
-                               ) : (
-                                 <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400"><Store size={20}/></div>
-                               )}
-                               <div>
+                                {shop.logo_url ? (
+                                  <img src={shop.logo_url} className="w-10 h-10 rounded-full object-cover border border-slate-200" />
+                                ) : (
+                                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400"><Store size={20}/></div>
+                                )}
+                                <div>
                                   <div className="font-medium text-slate-900">{shop.name}</div>
                                   <div className="text-xs text-slate-500">{shop.email || 'Chưa có email'}</div>
-                               </div>
+                                </div>
                             </div>
                           </td>
                           <td className="px-6 py-4 text-slate-600">{shop.owner_name || '---'}</td>
@@ -356,8 +356,8 @@ export default function App() {
                             </span>
                           </td>
                           <td className="px-6 py-4 text-slate-600 text-xs">
-                             <div className="flex items-center gap-1 text-emerald-600"><CalendarDays size={14}/> {shop.start_date ? format(new Date(shop.start_date), 'dd/MM/yyyy') : '-'}</div>
-                             <div className="flex items-center gap-1 text-red-500 mt-1"><CalendarDays size={14}/> {shop.expired_at ? format(new Date(shop.expired_at), 'dd/MM/yyyy') : '-'}</div>
+                              <div className="flex items-center gap-1 text-emerald-600"><CalendarDays size={14}/> {shop.start_date ? format(new Date(shop.start_date), 'dd/MM/yyyy') : '-'}</div>
+                              <div className="flex items-center gap-1 text-red-500 mt-1"><CalendarDays size={14}/> {shop.expired_at ? format(new Date(shop.expired_at), 'dd/MM/yyyy') : '-'}</div>
                           </td>
                           <td className="px-6 py-4 text-right">
                             <div className="flex items-center justify-end gap-2">
@@ -367,9 +367,12 @@ export default function App() {
                               <button onClick={() => handleToggleStatus(shop.id, shop.active)} className={`p-2 rounded-full border shadow-sm bg-white ${shop.active ? 'text-amber-500 border-amber-200' : 'text-emerald-600 border-emerald-200'}`} title={shop.active ? "Khóa ngay" : "Mở khóa ngay"}>
                                 {shop.active ? <Unlock size={18} /> : <Lock size={18} />}
                               </button>
-                              <button onClick={() => handleDelete(shop.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-full bg-white border border-slate-200 shadow-sm" title="Xóa vĩnh viễn">
+                              
+                              {/* --- ĐÂY LÀ DÒNG CẦN SỬA --- */}
+                              <button onClick={() => handleDelete(shop)} className="p-2 text-red-500 hover:bg-red-50 rounded-full bg-white border border-slate-200 shadow-sm" title="Xóa vĩnh viễn">
                                 <Trash2 size={18} />
                               </button>
+                              
                             </div>
                           </td>
                         </tr>
