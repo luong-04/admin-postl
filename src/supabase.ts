@@ -1,20 +1,27 @@
 import { createClient } from '@supabase/supabase-js';
 
-// 1. Lấy thông tin từ file .env.local (An toàn hơn)
+// 1. Lấy biến môi trường (Hỗ trợ cả 2 cách đặt tên để tránh lỗi)
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_KEY; // Key quan trọng để tạo User
+// Thử lấy ROLE_KEY trước, nếu không có thì lấy SERVICE_KEY
+const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || import.meta.env.VITE_SUPABASE_SERVICE_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
-  console.error("Thiếu thông tin cấu hình Supabase trong file .env.local");
+// 2. Debug: Kiểm tra xem biến có được nạp không (F12 để xem)
+console.log("Supabase Config Check:");
+console.log("- URL:", supabaseUrl ? "OK" : "MISSING");
+console.log("- Anon Key:", supabaseAnonKey ? "OK" : "MISSING");
+console.log("- Service Key:", supabaseServiceKey ? "OK" : "MISSING");
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  // Ném lỗi rõ ràng để không bị crash ngầm
+  throw new Error("❌ Lỗi: Thiếu VITE_SUPABASE_URL hoặc VITE_SUPABASE_ANON_KEY. Hãy kiểm tra Settings trên Vercel!");
 }
 
-// 2. Client thường (Dùng để đọc dữ liệu, hiển thị danh sách)
+// 3. Khởi tạo Client
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// 3. Client Admin (Dùng để TẠO TÀI KHOẢN User mà không cần đăng nhập)
-// persistSession: false giúp không lưu session admin vào trình duyệt, tránh xung đột
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+// Dùng Service Key để tạo User (Nếu thiếu key này thì tính năng tạo User sẽ lỗi)
+export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey || supabaseAnonKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false
